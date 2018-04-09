@@ -1,19 +1,10 @@
 const express = require('express');
-
 const router = express.Router();
-
-router.get("/", (req, res) => {
-    res.send('OK' +  req.body)
-});
+const itauService = require('../service/itauService')
 
 router.post("/", (req, res) => {
-    const { conta, agencia, digito, senha } = req.body
-
-    console.log(`Conta: ${conta}\nAgência: ${agencia}\nDigito: ${digito}\nPassword ${senha}`)
-
-    res.json({conta, agencia, digito, senha})
+    itauService.balance(req.body)
+    res.json({ "legal": "ehm"})
 });
-
-
 
 module.exports = app => app.use('/api', router)
