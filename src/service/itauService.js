@@ -1,48 +1,47 @@
 const axios = require('../config/axios');
 const cheerio = require('cheerio');
-const FormData = require('form-data');
+const horseman = require('../config/horseman')();
 
 const LOGIN_URL = 'https://ww70.itau.com.br/M/LoginPF.aspx';
 
 let response = "";
+let userBalance = "";
 
 const balance = async (body) => {
-    
 
     await axios.get(LOGIN_URL).then(res => response = res.data)
 
     const $ = cheerio.load(response)
-    let url = $('#Continue').attr('href').replace('../LoginPF.aspx?', '');
-    console.log(url)
+    let loginParam = $('#Continue').attr('href').replace('../LoginPF.aspx?', '');
 
-   
-    await axios.get(`${LOGIN_URL}?${url}`)
+    const { agencia, conta, digito, senha} = body
 
-    await axios({
-        method: 'post',
-        url: `${LOGIN_URL}?${url}`,
-        data: form(body),
-        config: { headers: {'Content-Type': 'multipart/form-data' }}
-    }).then(res => console.log(res.data))
+    if(!agencia || !conta || !digito || !senha) {
+        return "Erro: Necessário conta, agência, digito e senha"
+    }
 
-}
+    await horseman
+    .open(`${LOGIN_URL}?${loginParam}`)
+    .type('input[name="ctl00$ContentPlaceHolder1$txtAgenciaT"]', `${agencia}`)
+    .type('input[name="ctl00$ContentPlaceHolder1$txtContaT"]', `${conta}`)
+    .type('input[name="ctl00$ContentPlaceHolder1$txtDACT"]', `${digito}`)
+    .type('input[name="ctl00$ContentPlaceHolder1$txtPassT"]', `${senha}`)
+    .click('[name="ctl00$ContentPlaceHolder1$btnLogInT"]')
+    .waitForNextPage()
+    .evaluate(function () {
+        $ = window.$ || window.jQuery;
+        var fullHtml = $('body').html();
+        return fullHtml;
+    })
+    .then(html => {
+        const $ = cheerio.load(html)
+        this.userBalance = $('td .PF_texto12').text()
+    })
+    .finally(() => {
+        horseman.close()
+    }) 
 
-const form = body => {
-    const { agencia, conta, digito, senha } = body
-    // fazer alguma validação antes
-
-    let data = new FormData()
-    data.append('ctl00$ContentPlaceHolder1$txtAgenciaT', agencia)
-    data.append('ctl00$ContentPlaceHolder1$txtContaT', conta)
-    data.append('ctl00$ContentPlaceHolder1$txtDACT', digito)
-    data.append('ctl00$ContentPlaceHolder1$txtPassT', senha)
-    data.append('ctl00$ContentPlaceHolder1$btnLogInT.x', '12')
-    data.append('ctl00$ContentPlaceHolder1$btnLogInT.y', '14')
-    data.append('ctl00$hddAppTokenApp', '')
-    data.append('ctl00$hddExisteApp', '')
-
-
-    return data
+    return this.userBalance
 }
 
 
